@@ -22,6 +22,7 @@ pnpm dev             # http://localhost:3000
 | `pnpm db:generate` | Genera una migración a partir de cambios en `src/db/schema.ts` |
 | `pnpm db:migrate` | Aplica migraciones pendientes |
 | `pnpm db:studio` | Explorador visual de la DB |
+| `pnpm test` | Pruebas (Vitest) |
 | `pnpm typecheck` / `pnpm check` | TypeScript / Biome |
 
 ## Estructura
@@ -31,7 +32,9 @@ src/
   routes/          # Rutas basadas en archivos (TanStack Router)
     __root.tsx     # Documento HTML, layout global
     index.tsx      # Dashboard de productos
-  server/          # Server functions (createServerFn): solo corren en el servidor
+    products/$productId.tsx  # Detalle (ruta dinámica)
+  server/          # Server functions (createServerFn): puente UI -> servicios
+  services/        # Lógica de negocio (reutilizable por web, bot y worker)
   db/              # Esquema Drizzle, conexión y migrador
   components/      # UI (components/ui = shadcn)
   lib/             # Utilidades (tema, formato de precios)
