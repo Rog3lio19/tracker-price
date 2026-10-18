@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { PackageSearch } from "lucide-react";
 
+import { AddProductForm } from "#/components/add-product-form";
 import { Badge } from "#/components/ui/badge";
 import {
 	Card,
@@ -11,6 +12,11 @@ import {
 } from "#/components/ui/card";
 import type { Product } from "#/db/schema";
 import { formatPrice } from "#/lib/format";
+import {
+	marketplaceLabel,
+	statusClassName,
+	statusLabel,
+} from "#/lib/product-labels";
 import { listProducts } from "#/server/products";
 
 export const Route = createFileRoute("/")({
@@ -32,6 +38,8 @@ function ProductsPage() {
 				</p>
 			</div>
 
+			<AddProductForm />
+
 			{products.length === 0 ? (
 				<EmptyState />
 			) : (
@@ -52,50 +60,53 @@ function EmptyState() {
 				<PackageSearch className="size-10 text-tn-magenta" />
 				<p className="font-medium">Aún no sigues ningún producto</p>
 				<p className="max-w-sm text-sm text-muted-foreground">
-					Muy pronto podrás agregarlos pegando el link aquí o mandándolo por
-					Telegram.
+					Pega arriba el link de un producto para empezar a seguir su precio.
 				</p>
 			</CardContent>
 		</Card>
 	);
 }
 
-const marketplaceLabel: Record<Product["marketplace"], string> = {
-	amazon: "Amazon",
-	mercadolibre: "Mercado Libre",
-};
-
 function ProductCard({ product }: { product: Product }) {
 	return (
-		<Card>
-			<CardHeader>
-				<div className="flex items-center gap-2">
-					<Badge variant="secondary">
-						{marketplaceLabel[product.marketplace]}
-					</Badge>
-					{product.status !== "active" && (
-						<Badge variant="outline" className="text-warning">
-							{product.status}
+		<Link
+			to="/products/$productId"
+			params={{ productId: String(product.id) }}
+			className="group rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+		>
+			<Card className="h-full transition-colors group-hover:border-primary/50">
+				<CardHeader>
+					<div className="flex items-center gap-2">
+						<Badge variant="secondary">
+							{marketplaceLabel[product.marketplace]}
 						</Badge>
+						{product.status !== "active" && (
+							<Badge
+								variant="outline"
+								className={statusClassName[product.status]}
+							>
+								{statusLabel[product.status]}
+							</Badge>
+						)}
+					</div>
+					<CardTitle className="line-clamp-2 text-base break-all">
+						{product.title ?? product.externalId ?? product.canonicalUrl}
+					</CardTitle>
+					{product.sellerName && (
+						<CardDescription>Vendedor: {product.sellerName}</CardDescription>
 					)}
-				</div>
-				<CardTitle className="line-clamp-2 text-base">
-					{product.title ?? product.url}
-				</CardTitle>
-				{product.sellerName && (
-					<CardDescription>Vendedor: {product.sellerName}</CardDescription>
-				)}
-			</CardHeader>
-			<CardContent className="flex items-baseline justify-between">
-				<span className="font-mono text-2xl font-semibold tabular-nums">
-					{formatPrice(product.lastPrice)}
-				</span>
-				{product.lowestPrice != null && (
-					<span className="text-xs text-success">
-						mín. {formatPrice(product.lowestPrice)}
+				</CardHeader>
+				<CardContent className="mt-auto flex items-baseline justify-between">
+					<span className="font-mono text-2xl font-semibold tabular-nums">
+						{formatPrice(product.lastPrice)}
 					</span>
-				)}
-			</CardContent>
-		</Card>
+					{product.lowestPrice != null && (
+						<span className="text-xs text-success">
+							mín. {formatPrice(product.lowestPrice)}
+						</span>
+					)}
+				</CardContent>
+			</Card>
+		</Link>
 	);
 }

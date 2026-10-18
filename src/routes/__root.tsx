@@ -1,5 +1,10 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
-import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import {
+	createRootRoute,
+	HeadContent,
+	Link,
+	Scripts,
+} from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
 import { SiteHeader } from "#/components/site-header";
@@ -18,6 +23,14 @@ export const Route = createRootRoute({
 		scripts: [{ children: themeInitScript }],
 	}),
 	shellComponent: RootDocument,
+	notFoundComponent: () => (
+		<div className="space-y-2 py-12 text-center">
+			<p className="text-lg font-medium">Página no encontrada</p>
+			<Link to="/" className="text-sm text-primary hover:underline">
+				Volver al inicio
+			</Link>
+		</div>
+	),
 });
 
 /**
