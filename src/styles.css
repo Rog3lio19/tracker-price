@@ -1,0 +1,221 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Paleta Tokyo Night (https://github.com/folke/tokyonight.nvim)
+ *   - Light: variante "Day"
+ *   - Dark:  variante "Storm"
+ *
+ * Primero se declaran los colores crudos de la paleta (--tn-*) y después
+ * se mapean a los tokens semánticos que usa shadcn (--background, --primary, ...).
+ * Así, si quieres ajustar un color, solo cambias el mapeo.
+ */
+
+:root {
+  /* Tokyo Night Day */
+  --tn-bg: #e1e2e7;
+  --tn-bg-dark: #d0d5e3;
+  --tn-bg-float: #e9e9ed;
+  --tn-bg-highlight: #c4c8da;
+  --tn-fg: #3760bf;
+  --tn-fg-dark: #6172b0;
+  --tn-fg-gutter: #a8aecb;
+  --tn-comment: #848cb5;
+  --tn-blue: #2e7de9;
+  --tn-cyan: #007197;
+  --tn-magenta: #9854f1;
+  --tn-purple: #7847bd;
+  --tn-orange: #b15c00;
+  --tn-yellow: #8c6c3e;
+  --tn-green: #587539;
+  --tn-teal: #118c74;
+  --tn-red: #f52a65;
+
+  --background: var(--tn-bg);
+  --foreground: var(--tn-fg);
+  --card: var(--tn-bg-float);
+  --card-foreground: var(--tn-fg);
+  --popover: var(--tn-bg-float);
+  --popover-foreground: var(--tn-fg);
+  --primary: var(--tn-blue);
+  --primary-foreground: #ffffff;
+  --secondary: var(--tn-bg-dark);
+  --secondary-foreground: var(--tn-fg);
+  --muted: var(--tn-bg-dark);
+  --muted-foreground: var(--tn-fg-dark);
+  --accent: var(--tn-bg-highlight);
+  --accent-foreground: var(--tn-fg);
+  --destructive: var(--tn-red);
+  --destructive-foreground: #ffffff;
+  --border: var(--tn-bg-highlight);
+  --input: var(--tn-bg-highlight);
+  --ring: var(--tn-blue);
+
+  /* Tokens propios del dominio: bajadas / subidas de precio, avisos */
+  --success: var(--tn-green);
+  --success-foreground: #ffffff;
+  --warning: var(--tn-orange);
+  --warning-foreground: #ffffff;
+  --info: var(--tn-cyan);
+  --info-foreground: #ffffff;
+
+  --chart-1: var(--tn-blue);
+  --chart-2: var(--tn-green);
+  --chart-3: var(--tn-magenta);
+  --chart-4: var(--tn-orange);
+  --chart-5: var(--tn-cyan);
+
+  --radius: 0.625rem;
+
+  --sidebar: var(--tn-bg-dark);
+  --sidebar-foreground: var(--tn-fg);
+  --sidebar-primary: var(--tn-blue);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--tn-bg-highlight);
+  --sidebar-accent-foreground: var(--tn-fg);
+  --sidebar-border: var(--tn-bg-highlight);
+  --sidebar-ring: var(--tn-blue);
+}
+
+.dark {
+  /* Tokyo Night Storm */
+  --tn-bg: #24283b;
+  --tn-bg-dark: #1f2335;
+  --tn-bg-float: #1f2335;
+  --tn-bg-highlight: #292e42;
+  --tn-fg: #c0caf5;
+  --tn-fg-dark: #a9b1d6;
+  --tn-fg-gutter: #3b4261;
+  --tn-comment: #565f89;
+  --tn-dark5: #737aa2;
+  --tn-blue: #7aa2f7;
+  --tn-cyan: #7dcfff;
+  --tn-magenta: #bb9af7;
+  --tn-purple: #9d7cd8;
+  --tn-orange: #ff9e64;
+  --tn-yellow: #e0af68;
+  --tn-green: #9ece6a;
+  --tn-teal: #73daca;
+  --tn-red: #f7768e;
+
+  --background: var(--tn-bg);
+  --foreground: var(--tn-fg);
+  --card: var(--tn-bg-float);
+  --card-foreground: var(--tn-fg);
+  --popover: var(--tn-bg-float);
+  --popover-foreground: var(--tn-fg);
+  --primary: var(--tn-blue);
+  --primary-foreground: var(--tn-bg-dark);
+  --secondary: var(--tn-bg-highlight);
+  --secondary-foreground: var(--tn-fg);
+  --muted: var(--tn-bg-highlight);
+  --muted-foreground: var(--tn-dark5);
+  --accent: var(--tn-fg-gutter);
+  --accent-foreground: var(--tn-fg);
+  --destructive: var(--tn-red);
+  --destructive-foreground: var(--tn-bg-dark);
+  --border: var(--tn-fg-gutter);
+  --input: var(--tn-fg-gutter);
+  --ring: var(--tn-blue);
+
+  --success: var(--tn-green);
+  --success-foreground: var(--tn-bg-dark);
+  --warning: var(--tn-orange);
+  --warning-foreground: var(--tn-bg-dark);
+  --info: var(--tn-cyan);
+  --info-foreground: var(--tn-bg-dark);
+
+  --chart-1: var(--tn-blue);
+  --chart-2: var(--tn-green);
+  --chart-3: var(--tn-magenta);
+  --chart-4: var(--tn-orange);
+  --chart-5: var(--tn-cyan);
+
+  --sidebar: var(--tn-bg-dark);
+  --sidebar-foreground: var(--tn-fg);
+  --sidebar-primary: var(--tn-blue);
+  --sidebar-primary-foreground: var(--tn-bg-dark);
+  --sidebar-accent: var(--tn-bg-highlight);
+  --sidebar-accent-foreground: var(--tn-fg);
+  --sidebar-border: var(--tn-fg-gutter);
+  --sidebar-ring: var(--tn-blue);
+}
+
+@theme inline {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Colores crudos de la paleta, por si quieres usarlos directo: bg-tn-magenta */
+  --color-tn-blue: var(--tn-blue);
+  --color-tn-cyan: var(--tn-cyan);
+  --color-tn-magenta: var(--tn-magenta);
+  --color-tn-orange: var(--tn-orange);
+  --color-tn-yellow: var(--tn-yellow);
+  --color-tn-green: var(--tn-green);
+  --color-tn-teal: var(--tn-teal);
+  --color-tn-red: var(--tn-red);
+  --color-tn-comment: var(--tn-comment);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
