@@ -21,7 +21,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "scrape": "tsx --env-file-if-exists=.env.local scripts/scrape.ts"
+    "scrape": "tsx --env-file-if-exists=.env.local scripts/scrape.ts",
+    "worker": "tsx --env-file-if-exists=.env.local scripts/worker.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",

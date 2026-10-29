@@ -22,6 +22,8 @@ pnpm dev             # http://localhost:3000
 | `pnpm db:generate` | Genera una migración a partir de cambios en `src/db/schema.ts` |
 | `pnpm db:migrate` | Aplica migraciones pendientes |
 | `pnpm db:studio` | Explorador visual de la DB |
+| `pnpm worker` | Revisa los precios en segundo plano (cada producto según su intervalo) |
+| `pnpm scrape <url>` | Prueba la extracción de un link sin guardar nada |
 | `pnpm test` | Pruebas (Vitest) |
 | `pnpm typecheck` / `pnpm check` | TypeScript / Biome |
 
