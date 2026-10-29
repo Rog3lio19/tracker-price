@@ -12,14 +12,6 @@ export type ParsedProductUrl = {
 
 export class ProductUrlError extends Error {}
 
-/** Links cortos que hay que seguir (redirect) antes de poder parsearlos */
-const SHORT_LINK_HOSTS = ["amzn.to", "a.co", "amzn.eu", "meli.la"];
-
-export function isShortLink(raw: string) {
-	const url = tryParseUrl(raw);
-	return url != null && SHORT_LINK_HOSTS.includes(url.hostname);
-}
-
 export function parseProductUrl(raw: string): ParsedProductUrl {
 	const url = tryParseUrl(raw.trim());
 	if (!url) throw new ProductUrlError("No parece una URL válida");
@@ -78,6 +70,7 @@ function parseAmazon(url: URL): ParsedProductUrl {
 //     Si lo copiaste estando en la página, suele traer el vendedor elegido en
 //     el hash (#...wid=MLM123456789) o en ?pdp_filters=item_id:MLM123456789
 //  3. "User product" de un vendedor: mercadolibre.com.mx/slug/up/MLMU123456789
+//     (también suele traer ?pdp_filters=item_id:MLM... con la publicación)
 
 const ML_ITEM_PATH_RE = /\/(MLM)-?(\d{6,})/i;
 const ML_CATALOG_RE = /\/p\/(MLM\d+)/i;
@@ -88,10 +81,11 @@ function parseMercadoLibre(url: URL): ParsedProductUrl {
 	const catalogProductId =
 		url.pathname.match(ML_CATALOG_RE)?.[1]?.toUpperCase() ?? null;
 
-	// El ID de la publicación del vendedor puede venir en el path o en params/hash
-	const itemMatch = catalogProductId
-		? `${url.search}${url.hash}`.match(ML_ITEM_IN_PARAMS_RE)
-		: url.pathname.match(ML_ITEM_PATH_RE);
+	// El ID de la publicación del vendedor puede venir en params/hash (links de
+	// catálogo o /up/) o en el path (links de articulo.mercadolibre.com.mx)
+	const itemMatch =
+		`${url.search}${url.hash}`.match(ML_ITEM_IN_PARAMS_RE) ??
+		(catalogProductId ? null : url.pathname.match(ML_ITEM_PATH_RE));
 	const itemId = itemMatch ? `MLM${itemMatch[2]}` : null;
 
 	if (itemId) {
@@ -117,7 +111,7 @@ function parseMercadoLibre(url: URL): ParsedProductUrl {
 	}
 
 	if (catalogProductId) {
-		// Catálogo sin vendedor: en la Fase 2 se resolverá el vendedor actual y se fijará
+		// Catálogo sin vendedor: en la primera revisión se fija el vendedor actual
 		return {
 			marketplace: "mercadolibre",
 			canonicalUrl: `https://www.mercadolibre.com.mx/p/${catalogProductId}`,

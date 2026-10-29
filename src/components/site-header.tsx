@@ -20,6 +20,14 @@ export function SiteHeader() {
 					>
 						Productos
 					</Link>
+					<Link
+						to="/settings"
+						search={{}}
+						className="hover:text-foreground"
+						activeProps={{ className: "text-foreground font-medium" }}
+					>
+						Configuración
+					</Link>
 				</nav>
 				<div className="ml-auto">
 					<ThemeToggle />

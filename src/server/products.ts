@@ -2,6 +2,7 @@ import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+import { checkProduct } from "#/services/checks";
 import * as productService from "#/services/products";
 
 /*
@@ -29,7 +30,17 @@ export const getProduct = createServerFn({ method: "GET" })
 
 export const addProduct = createServerFn({ method: "POST" })
 	.validator(z.object({ url: z.string().trim().min(1, "Pega un link") }))
-	.handler(({ data }) => productService.addProductFromUrl(data.url));
+	.handler(async ({ data }) => {
+		const result = await productService.addProductFromUrl(data.url);
+		// Primera revisión inmediata: así ves título y precio de una vez.
+		// Si falla no pasa nada, el producto ya quedó guardado.
+		if (result.status === "created") await checkProduct(result.id);
+		return result;
+	});
+
+export const checkProductNow = createServerFn({ method: "POST" })
+	.validator(productIdInput)
+	.handler(({ data }) => checkProduct(data.id));
 
 export const setProductPaused = createServerFn({ method: "POST" })
 	.validator(productIdInput.extend({ paused: z.boolean() }))

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isShortLink, parseProductUrl } from "./product-url";
+import { parseProductUrl } from "./product-url";
 
 describe("parseProductUrl — Amazon", () => {
 	it.each([
@@ -89,6 +89,17 @@ describe("parseProductUrl — Mercado Libre", () => {
 		});
 	});
 
+	it("user product con la publicación en pdp_filters (links de meli.la)", () => {
+		expect(
+			parseProductUrl(
+				"https://www.mercadolibre.com.mx/silla-gamer/up/MLMU3846847924?pdp_filters=item_id%3AMLM4996777552&matt_event_ts=1",
+			),
+		).toMatchObject({
+			canonicalUrl: "https://articulo.mercadolibre.com.mx/MLM-4996777552",
+			externalId: "MLM4996777552",
+		});
+	});
+
 	it("rechaza búsquedas", () => {
 		expect(() =>
 			parseProductUrl("https://listado.mercadolibre.com.mx/perfume-dior"),
@@ -102,11 +113,5 @@ describe("otros casos", () => {
 			/Amazon y Mercado Libre/,
 		);
 		expect(() => parseProductUrl("hola mundo")).toThrow();
-	});
-
-	it("detecta links cortos", () => {
-		expect(isShortLink("https://amzn.to/3abcXYZ")).toBe(true);
-		expect(isShortLink("https://meli.la/1AbCdEf")).toBe(true);
-		expect(isShortLink("https://www.amazon.com.mx/dp/B0CHX1W1XY")).toBe(false);
 	});
 });

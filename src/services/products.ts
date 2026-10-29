@@ -5,12 +5,9 @@
 import { desc, eq } from "drizzle-orm";
 
 import { db } from "#/db";
-import { priceSnapshots, products } from "#/db/schema";
-import {
-	isShortLink,
-	ProductUrlError,
-	parseProductUrl,
-} from "#/lib/product-url";
+import { priceSnapshots, products, scrapeErrors } from "#/db/schema";
+import { ProductUrlError, parseProductUrl } from "#/lib/product-url";
+import { isShortLink, resolveShortLink } from "#/scraper/short-links";
 
 export type AddProductResult =
 	| { status: "created"; id: number }
@@ -31,6 +28,15 @@ export async function addProductFromUrl(
 		throw error;
 	}
 
+	// La API de ML solo deja leer ofertas de catálogo (ver scraper/mercadolibre/api.ts)
+	if (parsed.marketplace === "mercadolibre" && !parsed.catalogProductId) {
+		return {
+			status: "invalid",
+			error:
+				"Mercado Libre solo nos deja rastrear productos de catálogo: abre el producto, elige al vendedor en «Otras opciones de compra» y copia ese link (el que tiene /p/MLM...).",
+		};
+	}
+
 	const existing = db
 		.select({ id: products.id })
 		.from(products)
@@ -40,7 +46,13 @@ export async function addProductFromUrl(
 
 	const created = db
 		.insert(products)
-		.values({ ...parsed, url: rawUrl.trim() })
+		.values({
+			...parsed,
+			url: rawUrl.trim(),
+			// En Mercado Libre fijamos el vendedor (vendedores no confiables).
+			// En Amazon el vendedor de la caja de compra cambia seguido y es normal.
+			sellerLock: parsed.marketplace === "mercadolibre",
+		})
 		.returning({ id: products.id })
 		.get();
 	return { status: "created", id: created.id };
@@ -60,6 +72,10 @@ export function getProductWithHistory(id: number) {
 					limit: 50,
 				},
 				alertRules: true,
+				errors: {
+					orderBy: desc(scrapeErrors.occurredAt),
+					limit: 5,
+				},
 			},
 		})
 		.sync();
@@ -75,27 +91,4 @@ export function setProductPaused(id: number, paused: boolean) {
 export function deleteProduct(id: number) {
 	// Las tablas hijas (snapshots, alertas...) se borran solas por ON DELETE CASCADE
 	db.delete(products).where(eq(products.id, id)).run();
-}
-
-/**
- * Sigue las redirecciones de amzn.to / meli.la leyendo solo el header
- * Location, sin descargar la página final (Amazon suele bloquear bots).
- */
-async function resolveShortLink(rawUrl: string) {
-	let current = rawUrl;
-	for (let hop = 0; hop < 5 && isShortLink(current); hop++) {
-		const response = await fetch(current, {
-			method: "HEAD",
-			redirect: "manual",
-			signal: AbortSignal.timeout(8000),
-		}).catch(() => null);
-		const location = response?.headers.get("location");
-		if (!location) {
-			throw new ProductUrlError(
-				"No pude abrir el link corto, pega el link completo",
-			);
-		}
-		current = new URL(location, current).toString();
-	}
-	return current;
 }

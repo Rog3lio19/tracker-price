@@ -12,6 +12,7 @@ import {
 	Loader2,
 	Pause,
 	Play,
+	RefreshCw,
 	ShieldCheck,
 	Trash2,
 } from "lucide-react";
@@ -37,6 +38,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "#/components/ui/card";
+import { describeCheckOutcome } from "#/lib/check-outcome";
 import { formatDateTime, formatPrice } from "#/lib/format";
 import {
 	marketplaceLabel,
@@ -44,7 +46,12 @@ import {
 	statusLabel,
 } from "#/lib/product-labels";
 import { cn } from "#/lib/utils";
-import { deleteProduct, getProduct, setProductPaused } from "#/server/products";
+import {
+	checkProductNow,
+	deleteProduct,
+	getProduct,
+	setProductPaused,
+} from "#/server/products";
 
 /*
  * El archivo se llama `$productId.tsx`: el `$` convierte ese segmento en un
@@ -105,6 +112,7 @@ function ProductPage() {
 				</div>
 
 				<div className="flex shrink-0 gap-2">
+					<CheckNowButton id={product.id} />
 					<PauseButton id={product.id} isPaused={isPaused} />
 					<DeleteButton id={product.id} />
 				</div>
@@ -199,6 +207,38 @@ function ProductPage() {
 					)}
 				</CardContent>
 			</Card>
+		</div>
+	);
+}
+
+function CheckNowButton({ id }: { id: number }) {
+	const router = useRouter();
+	const [pending, setPending] = useState(false);
+	const [message, setMessage] = useState<string | null>(null);
+
+	async function check() {
+		setPending(true);
+		setMessage(null);
+		try {
+			const outcome = await checkProductNow({ data: { id } });
+			setMessage(describeCheckOutcome(outcome));
+			await router.invalidate();
+		} finally {
+			setPending(false);
+		}
+	}
+
+	return (
+		<div className="flex flex-col items-end gap-1">
+			<Button onClick={check} disabled={pending}>
+				{pending ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+				Revisar ahora
+			</Button>
+			{message && (
+				<p className="max-w-64 text-right text-xs text-muted-foreground">
+					{message}
+				</p>
+			)}
 		</div>
 	);
 }
