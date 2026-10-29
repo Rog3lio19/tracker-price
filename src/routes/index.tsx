@@ -10,8 +10,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "#/components/ui/card";
-import type { Product } from "#/db/schema";
 import { formatPrice } from "#/lib/format";
+import { discountPercent } from "#/lib/price-insights";
 import {
 	marketplaceLabel,
 	statusClassName,
@@ -26,6 +26,8 @@ export const Route = createFileRoute("/")({
 	component: ProductsPage,
 });
 
+type ListedProduct = Awaited<ReturnType<typeof listProducts>>[number];
+
 function ProductsPage() {
 	const products = Route.useLoaderData();
 
@@ -37,6 +39,8 @@ function ProductsPage() {
 					Lo que estás siguiendo en Amazon y Mercado Libre.
 				</p>
 			</div>
+
+			{products.length > 0 && <Summary products={products} />}
 
 			<AddProductForm />
 
@@ -50,6 +54,60 @@ function ProductsPage() {
 				</div>
 			)}
 		</div>
+	);
+}
+
+/** Tres números para ver de un vistazo cómo va todo */
+function Summary({ products }: { products: ListedProduct[] }) {
+	const onSale = products.filter(
+		(p) =>
+			p.status === "active" &&
+			discountPercent(p.lastPrice, p.listPrice) != null,
+	).length;
+	const needAttention = products.filter(
+		(p) =>
+			p.status === "error" ||
+			p.status === "seller_changed" ||
+			p.status === "out_of_stock",
+	).length;
+
+	return (
+		<div className="grid gap-4 sm:grid-cols-3">
+			<SummaryStat label="Siguiendo" value={products.length} />
+			<SummaryStat
+				label="Con descuento en la tienda"
+				value={onSale}
+				className={onSale > 0 ? "text-success" : undefined}
+			/>
+			<SummaryStat
+				label="Requieren atención"
+				value={needAttention}
+				className={needAttention > 0 ? "text-warning" : undefined}
+			/>
+		</div>
+	);
+}
+
+function SummaryStat({
+	label,
+	value,
+	className,
+}: {
+	label: string;
+	value: number;
+	className?: string;
+}) {
+	return (
+		<Card className="gap-1 py-4">
+			<CardContent className="px-4">
+				<p className="text-xs text-muted-foreground">{label}</p>
+				<p
+					className={`font-mono text-2xl font-semibold tabular-nums ${className ?? ""}`}
+				>
+					{value}
+				</p>
+			</CardContent>
+		</Card>
 	);
 }
 
@@ -67,7 +125,8 @@ function EmptyState() {
 	);
 }
 
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product }: { product: ListedProduct }) {
+	const discount = discountPercent(product.lastPrice, product.listPrice);
 	return (
 		<Link
 			to="/products/$productId"
@@ -96,14 +155,24 @@ function ProductCard({ product }: { product: Product }) {
 						<CardDescription>Vendedor: {product.sellerName}</CardDescription>
 					)}
 				</CardHeader>
-				<CardContent className="mt-auto flex items-baseline justify-between">
-					<span className="font-mono text-2xl font-semibold tabular-nums">
-						{formatPrice(product.lastPrice)}
-					</span>
-					{product.lowestPrice != null && (
-						<span className="text-xs text-success">
-							mín. {formatPrice(product.lowestPrice)}
+				<CardContent className="mt-auto space-y-1">
+					<div className="flex items-baseline justify-between">
+						<span className="font-mono text-2xl font-semibold tabular-nums">
+							{formatPrice(product.lastPrice)}
 						</span>
+						{product.lowestPrice != null && (
+							<span className="text-xs text-success">
+								mín. {formatPrice(product.lowestPrice)}
+							</span>
+						)}
+					</div>
+					{discount != null && (
+						<p className="flex items-center gap-2 text-xs">
+							<span className="text-muted-foreground line-through">
+								{formatPrice(product.listPrice)}
+							</span>
+							<span className="text-success">−{discount}%</span>
+						</p>
 					)}
 				</CardContent>
 			</Card>

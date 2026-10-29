@@ -2,7 +2,7 @@
  * Lógica de productos, independiente de TanStack Start.
  * La usan las server functions (web), y más adelante el bot de Telegram y el worker.
  */
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray, max } from "drizzle-orm";
 
 import { db } from "#/db";
 import { priceSnapshots, products, scrapeErrors } from "#/db/schema";
@@ -60,8 +60,39 @@ export async function addProductFromUrl(
 	return { status: "created", id: created.id };
 }
 
+/** Productos + el precio tachado de su revisión más reciente (para las tarjetas) */
 export function listProducts() {
-	return db.select().from(products).orderBy(desc(products.createdAt)).all();
+	const all = db
+		.select()
+		.from(products)
+		.orderBy(desc(products.createdAt))
+		.all();
+
+	const latestIds = db
+		.select({ id: max(priceSnapshots.id) })
+		.from(priceSnapshots)
+		.groupBy(priceSnapshots.productId);
+	const listPrices = new Map(
+		db
+			.select({
+				productId: priceSnapshots.productId,
+				listPrice: priceSnapshots.listPrice,
+			})
+			.from(priceSnapshots)
+			.where(
+				inArray(
+					priceSnapshots.id,
+					latestIds.all().flatMap((row) => (row.id == null ? [] : [row.id])),
+				),
+			)
+			.all()
+			.map((row) => [row.productId, row.listPrice]),
+	);
+
+	return all.map((product) => ({
+		...product,
+		listPrice: listPrices.get(product.id) ?? null,
+	}));
 }
 
 export function getProductWithHistory(id: number) {
@@ -71,7 +102,7 @@ export function getProductWithHistory(id: number) {
 			with: {
 				snapshots: {
 					orderBy: desc(priceSnapshots.checkedAt),
-					limit: 50,
+					limit: 300,
 				},
 				alertRules: true,
 				errors: {

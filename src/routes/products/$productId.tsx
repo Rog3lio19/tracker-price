@@ -9,6 +9,7 @@ import {
 	ArrowLeft,
 	ExternalLink,
 	History,
+	LineChart,
 	Loader2,
 	Pause,
 	Play,
@@ -17,7 +18,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import { useState } from "react";
-
+import { PriceChart } from "#/components/price-chart";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -40,6 +41,11 @@ import {
 } from "#/components/ui/card";
 import { describeCheckOutcome } from "#/lib/check-outcome";
 import { formatDateTime, formatPrice } from "#/lib/format";
+import {
+	discountPercent,
+	judgeOffer,
+	type OfferVerdict,
+} from "#/lib/price-insights";
 import {
 	marketplaceLabel,
 	statusClassName,
@@ -73,6 +79,11 @@ export const Route = createFileRoute("/products/$productId")({
 function ProductPage() {
 	const product = Route.useLoaderData();
 	const isPaused = product.status === "paused";
+	// snapshots viene del más nuevo al más viejo
+	const latest = product.snapshots.find((s) => s.price != null);
+	const listPrice = latest?.listPrice ?? null;
+	const discount = discountPercent(product.lastPrice, listPrice);
+	const verdict = judgeOffer(product.lastPrice, listPrice, product.snapshots);
 
 	return (
 		<div className="space-y-6">
@@ -119,7 +130,25 @@ function ProductPage() {
 			</div>
 
 			<div className="grid gap-4 sm:grid-cols-3">
-				<Stat label="Precio actual" value={formatPrice(product.lastPrice)} />
+				<Stat
+					label="Precio actual"
+					value={formatPrice(product.lastPrice)}
+					extra={
+						discount != null && (
+							<p className="mt-1 flex items-center gap-2 text-xs">
+								<span className="text-muted-foreground line-through">
+									{formatPrice(listPrice)}
+								</span>
+								<Badge
+									variant="outline"
+									className="border-success/40 text-success"
+								>
+									−{discount}%
+								</Badge>
+							</p>
+						)
+					}
+				/>
 				<Stat
 					label="Mínimo histórico"
 					value={formatPrice(product.lowestPrice)}
@@ -171,6 +200,29 @@ function ProductPage() {
 				</CardContent>
 			</Card>
 
+			{verdict.kind !== "none" && (
+				<OfferNote verdict={verdict} listPrice={listPrice} />
+			)}
+
+			<Card>
+				<CardHeader>
+					<CardTitle className="flex items-center gap-2 text-base">
+						<LineChart className="size-4 text-tn-cyan" />
+						Evolución del precio
+					</CardTitle>
+					<CardDescription>
+						Línea punteada verde: mínimo histórico. Círculo hueco: lectura
+						sospechosa, sin confirmar.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<PriceChart
+						history={product.snapshots}
+						lowestPrice={product.lowestPrice}
+					/>
+				</CardContent>
+			</Card>
+
 			<Card>
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2 text-base">
@@ -178,7 +230,7 @@ function ProductPage() {
 						Historial de precios
 					</CardTitle>
 					<CardDescription>
-						Últimas {product.snapshots.length} revisiones
+						Últimas {Math.min(product.snapshots.length, 20)} revisiones
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
@@ -188,7 +240,7 @@ function ProductPage() {
 						</p>
 					) : (
 						<ul className="divide-y">
-							{product.snapshots.map((snapshot) => (
+							{product.snapshots.slice(0, 20).map((snapshot) => (
 								<li
 									key={snapshot.id}
 									className="flex items-center justify-between py-2 text-sm"
@@ -317,11 +369,13 @@ function Stat({
 	value,
 	className,
 	small,
+	extra,
 }: {
 	label: string;
 	value: string;
 	className?: string;
 	small?: boolean;
+	extra?: React.ReactNode;
 }) {
 	return (
 		<Card className="gap-1 py-4">
@@ -336,6 +390,37 @@ function Stat({
 				>
 					{value}
 				</p>
+				{extra}
+			</CardContent>
+		</Card>
+	);
+}
+
+/** Qué decimos del descuento que marca la tienda, según nuestro historial */
+function OfferNote({
+	verdict,
+	listPrice,
+}: {
+	verdict: Exclude<OfferVerdict, { kind: "none" }>;
+	listPrice: number | null;
+}) {
+	const text = {
+		too_early:
+			"La tienda marca un descuento, pero llevo muy poco tiempo siguiendo este producto para comprobarlo.",
+		confirmed: `Oferta creíble: en el historial llegó a ${formatPrice("highestSeen" in verdict ? verdict.highestSeen : null)}, cerca del precio anterior que marca la tienda.`,
+		unverified: `Descuento sin comprobar: en ${"days" in verdict ? verdict.days : 0} días nunca lo vi arriba de ${formatPrice("highestSeen" in verdict ? verdict.highestSeen : null)}, y la tienda dice que antes costaba ${formatPrice(listPrice)}. No significa que sea falso, solo que no lo he visto a ese precio.`,
+	}[verdict.kind];
+
+	return (
+		<Card
+			className={cn(
+				"gap-0 py-3",
+				verdict.kind === "confirmed" && "border-success/40",
+				verdict.kind === "unverified" && "border-warning/40",
+			)}
+		>
+			<CardContent className="px-4 text-sm text-muted-foreground">
+				{text}
 			</CardContent>
 		</Card>
 	);
