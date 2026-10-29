@@ -2,7 +2,7 @@
  * Revisar un producto = extraer su precio actual y registrarlo.
  * Lo usa el botón "Revisar ahora", el comando `pnpm check` y (Fase 3) el worker.
  */
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 import { db } from "#/db";
 import {
@@ -11,10 +11,8 @@ import {
 	products,
 	scrapeErrors,
 } from "#/db/schema";
+import { isSuspiciousChange } from "#/lib/suspicious";
 import { BlockedError, type ProductScrape, scrapeProduct } from "#/scraper";
-
-/** Un cambio de más de 50% contra el último precio es sospechoso */
-const SUSPICIOUS_CHANGE = 0.5;
 
 export type CheckOutcome =
 	| {
@@ -74,11 +72,22 @@ export async function checkProduct(productId: number): Promise<CheckOutcome> {
 		};
 	}
 
-	const suspicious =
-		result.price != null &&
-		product.lastPrice != null &&
-		Math.abs(result.price - product.lastPrice) / product.lastPrice >
-			SUSPICIOUS_CHANGE;
+	// ¿Cambio brusco? Se confirma si la revisión anterior vio casi el mismo precio
+	const lastSnapshot = db
+		.select({
+			price: priceSnapshots.price,
+			isSuspicious: priceSnapshots.isSuspicious,
+		})
+		.from(priceSnapshots)
+		.where(eq(priceSnapshots.productId, product.id))
+		.orderBy(desc(priceSnapshots.id))
+		.limit(1)
+		.get();
+	const suspicious = isSuspiciousChange(
+		result.price,
+		product.lastPrice,
+		lastSnapshot?.isSuspicious ? lastSnapshot.price : null,
+	);
 
 	db.transaction((tx) => {
 		tx.insert(priceSnapshots)
@@ -105,7 +114,10 @@ export async function checkProduct(productId: number): Promise<CheckOutcome> {
 				// Catálogo de ML: guardamos la publicación que ganó la caja de compra
 				externalId: result.itemId ?? product.externalId,
 				status: nextStatus(product, result.inStock),
-				lastPrice: result.price ?? product.lastPrice,
+				// Un precio sospechoso no reemplaza al último confirmado hasta confirmarse
+				lastPrice: suspicious
+					? product.lastPrice
+					: (result.price ?? product.lastPrice),
 				lowestPrice: countsForLowest
 					? sql`min(coalesce(${products.lowestPrice}, ${result.price}), ${result.price})`
 					: product.lowestPrice,

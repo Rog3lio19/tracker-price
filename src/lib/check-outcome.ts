@@ -8,7 +8,7 @@ export function describeCheckOutcome(outcome: CheckOutcome) {
 		case "ok":
 			if (!outcome.inStock) return "Revisado: sin stock por ahora";
 			return outcome.suspicious
-				? `Revisado: ${formatPrice(outcome.price)} (cambio brusco, se marcó como sospechoso)`
+				? `Revisado: ${formatPrice(outcome.price)} (cambio brusco: lo confirmaré en la siguiente revisión)`
 				: `Revisado: ${formatPrice(outcome.price)}`;
 		case "seller_changed":
 			return `La publicación ahora es de "${outcome.found}" y no de "${outcome.expected}". No se registró el precio.`;
