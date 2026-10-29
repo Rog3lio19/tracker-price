@@ -17,7 +17,19 @@ import { BlockedError, type ProductScrape, scrapeProduct } from "#/scraper";
 const SUSPICIOUS_CHANGE = 0.5;
 
 export type CheckOutcome =
-	| { kind: "ok"; price: number | null; inStock: boolean; suspicious: boolean }
+	| {
+			kind: "ok";
+			price: number | null;
+			listPrice: number | null;
+			inStock: boolean;
+			suspicious: boolean;
+			/** Lo que sabíamos ANTES de esta revisión (para detectar bajadas) */
+			previous: {
+				price: number | null;
+				lowestPrice: number | null;
+				wasInStock: boolean;
+			};
+	  }
 	| { kind: "seller_changed"; expected: string; found: string }
 	| { kind: "blocked"; store: Product["marketplace"]; message: string }
 	| { kind: "error"; message: string };
@@ -107,8 +119,14 @@ export async function checkProduct(productId: number): Promise<CheckOutcome> {
 	return {
 		kind: "ok",
 		price: result.price,
+		listPrice: result.listPrice,
 		inStock: result.inStock,
 		suspicious,
+		previous: {
+			price: product.lastPrice,
+			lowestPrice: product.lowestPrice,
+			wasInStock: product.status !== "out_of_stock",
+		},
 	};
 }
 

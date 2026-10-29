@@ -8,6 +8,7 @@ import { db } from "#/db";
 import { priceSnapshots, products, scrapeErrors } from "#/db/schema";
 import { ProductUrlError, parseProductUrl } from "#/lib/product-url";
 import { isShortLink, resolveShortLink } from "#/scraper/short-links";
+import { createDefaultRules } from "#/services/alerts";
 
 export type AddProductResult =
 	| { status: "created"; id: number }
@@ -55,6 +56,7 @@ export async function addProductFromUrl(
 		})
 		.returning({ id: products.id })
 		.get();
+	createDefaultRules(created.id);
 	return { status: "created", id: created.id };
 }
 

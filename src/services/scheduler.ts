@@ -6,7 +6,7 @@ import { inArray } from "drizzle-orm";
 
 import { db } from "#/db";
 import { type Product, products } from "#/db/schema";
-import { checkProduct } from "#/services/checks";
+import { checkAndNotify } from "#/services/alerts";
 
 /** "error" y "paused" no se revisan solos: requieren que tú intervengas */
 const CHECKABLE_STATUSES = ["active", "out_of_stock"] as const;
@@ -73,7 +73,7 @@ export async function runDueChecks(
 		}
 
 		const label = product.title ?? product.externalId ?? `#${product.id}`;
-		const outcome = await checkProduct(product.id);
+		const outcome = await checkAndNotify(product.id);
 		summary.checked++;
 
 		switch (outcome.kind) {
