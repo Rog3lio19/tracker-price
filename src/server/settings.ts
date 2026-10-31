@@ -14,8 +14,8 @@ export const getMercadoLibreConnection = createServerFn({
 
 export const startMercadoLibreConnect = createServerFn({
 	method: "POST",
-}).handler(() => ({
-	url: buildAuthorizeUrl(),
+}).handler(async () => ({
+	url: await buildAuthorizeUrl(),
 }));
 
 export const finishMercadoLibreConnect = createServerFn({ method: "POST" })

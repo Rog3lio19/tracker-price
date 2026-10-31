@@ -32,7 +32,6 @@
     "@tanstack/react-router": "1.170.45",
     "@tanstack/react-router-devtools": "1.167.2",
     "@tanstack/react-start": "1.169.3",
-    "better-sqlite3": "^12.6.2",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -41,6 +40,7 @@
     "drizzle-orm": "^0.45.1",
     "lucide-react": "^0.577.0",
     "nitro": "3.0.260610-beta",
+    "pg": "^8.23.1",
     "radix-ui": "^1.8.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -55,8 +55,8 @@
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-vite": "0.8.5",
     "@tanstack/router-cli": "^1.132.0",
-    "@types/better-sqlite3": "^7.6.0",
     "@types/node": "^22.10.2",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.1",
@@ -68,8 +68,7 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild",
-      "lightningcss",
-      "better-sqlite3"
+      "lightningcss"
     ]
   }
 }

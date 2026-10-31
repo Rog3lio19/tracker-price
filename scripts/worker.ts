@@ -32,7 +32,7 @@ async function tick() {
 	}
 }
 
-ensureDefaultRules();
+await ensureDefaultRules();
 
 const bot = isTelegramConfigured()
 	? await startBot(log).catch((error) => {

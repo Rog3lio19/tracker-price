@@ -1,26 +1,28 @@
-import { relations, sql } from "drizzle-orm";
+import { relations } from "drizzle-orm";
 import {
+	boolean,
 	index,
 	integer,
+	pgTable,
 	real,
-	sqliteTable,
 	text,
-} from "drizzle-orm/sqlite-core";
+	timestamp,
+} from "drizzle-orm/pg-core";
 
 /*
  * Convenciones:
  * - Los precios se guardan en CENTAVOS como enteros (149900 = $1,499.00 MXN).
  *   Nunca uses float para dinero: 0.1 + 0.2 !== 0.3.
- * - Las fechas se guardan como unix epoch (segundos) y Drizzle las convierte a Date.
+ * - Las fechas son `timestamptz` y Drizzle las entrega como Date.
  */
 
+const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
+
 const timestamps = {
-	createdAt: integer("created_at", { mode: "timestamp" })
+	createdAt: timestamptz("created_at").notNull().defaultNow(),
+	updatedAt: timestamptz("updated_at")
 		.notNull()
-		.default(sql`(unixepoch())`),
-	updatedAt: integer("updated_at", { mode: "timestamp" })
-		.notNull()
-		.default(sql`(unixepoch())`)
+		.defaultNow()
 		.$onUpdate(() => new Date()),
 };
 
@@ -44,10 +46,10 @@ export const extractionSources = [
 ] as const;
 export type ExtractionSource = (typeof extractionSources)[number];
 
-export const products = sqliteTable(
+export const products = pgTable(
 	"products",
 	{
-		id: integer().primaryKey({ autoIncrement: true }),
+		id: integer().primaryKey().generatedAlwaysAsIdentity(),
 		marketplace: text({ enum: marketplaces }).notNull(),
 		/** URL tal como la mandó el usuario */
 		url: text().notNull(),
@@ -70,9 +72,7 @@ export const products = sqliteTable(
 		 * a mostrar otro vendedor, se marca como `seller_changed` en vez de
 		 * registrar (y alertar) un precio de un vendedor en el que no confías.
 		 */
-		sellerLock: integer("seller_lock", { mode: "boolean" })
-			.notNull()
-			.default(true),
+		sellerLock: boolean("seller_lock").notNull().default(true),
 
 		status: text({ enum: productStatuses }).notNull().default("active"),
 		checkIntervalMinutes: integer("check_interval_minutes")
@@ -84,7 +84,7 @@ export const products = sqliteTable(
 		/** Desnormalizado para listar rápido sin consultar el historial */
 		lastPrice: integer("last_price"),
 		lowestPrice: integer("lowest_price"),
-		lastCheckedAt: integer("last_checked_at", { mode: "timestamp" }),
+		lastCheckedAt: timestamptz("last_checked_at"),
 		consecutiveFailures: integer("consecutive_failures").notNull().default(0),
 
 		...timestamps,
@@ -92,10 +92,10 @@ export const products = sqliteTable(
 	(t) => [index("products_status_idx").on(t.status)],
 );
 
-export const priceSnapshots = sqliteTable(
+export const priceSnapshots = pgTable(
 	"price_snapshots",
 	{
-		id: integer().primaryKey({ autoIncrement: true }),
+		id: integer().primaryKey().generatedAlwaysAsIdentity(),
 		productId: integer("product_id")
 			.notNull()
 			.references(() => products.id, { onDelete: "cascade" }),
@@ -103,7 +103,7 @@ export const priceSnapshots = sqliteTable(
 		price: integer(),
 		/** Precio "antes" que muestra la tienda (el tachado) */
 		listPrice: integer("list_price"),
-		inStock: integer("in_stock", { mode: "boolean" }).notNull(),
+		inStock: boolean("in_stock").notNull(),
 		/** Vendedor que tenía la publicación en el momento de la revisión */
 		sellerId: text("seller_id"),
 		source: text({ enum: extractionSources }).notNull(),
@@ -111,12 +111,8 @@ export const priceSnapshots = sqliteTable(
 		confidence: real(),
 		screenshotPath: text("screenshot_path"),
 		/** Cambio brusco o baja confianza: no dispara alertas hasta confirmarse */
-		isSuspicious: integer("is_suspicious", { mode: "boolean" })
-			.notNull()
-			.default(false),
-		checkedAt: integer("checked_at", { mode: "timestamp" })
-			.notNull()
-			.default(sql`(unixepoch())`),
+		isSuspicious: boolean("is_suspicious").notNull().default(false),
+		checkedAt: timestamptz("checked_at").notNull().defaultNow(),
 	},
 	(t) => [index("snapshots_product_date_idx").on(t.productId, t.checkedAt)],
 );
@@ -129,22 +125,22 @@ export const alertTypes = [
 ] as const;
 export type AlertType = (typeof alertTypes)[number];
 
-export const alertRules = sqliteTable("alert_rules", {
-	id: integer().primaryKey({ autoIncrement: true }),
+export const alertRules = pgTable("alert_rules", {
+	id: integer().primaryKey().generatedAlwaysAsIdentity(),
 	productId: integer("product_id")
 		.notNull()
 		.references(() => products.id, { onDelete: "cascade" }),
 	type: text({ enum: alertTypes }).notNull(),
 	threshold: integer(),
-	isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+	isActive: boolean("is_active").notNull().default(true),
 	/** Evita mandarte la misma alerta cada revisión */
 	cooldownHours: integer("cooldown_hours").notNull().default(24),
-	lastTriggeredAt: integer("last_triggered_at", { mode: "timestamp" }),
+	lastTriggeredAt: timestamptz("last_triggered_at"),
 	...timestamps,
 });
 
-export const notifications = sqliteTable("notifications", {
-	id: integer().primaryKey({ autoIncrement: true }),
+export const notifications = pgTable("notifications", {
+	id: integer().primaryKey().generatedAlwaysAsIdentity(),
 	productId: integer("product_id")
 		.notNull()
 		.references(() => products.id, { onDelete: "cascade" }),
@@ -153,24 +149,20 @@ export const notifications = sqliteTable("notifications", {
 	}),
 	message: text().notNull(),
 	telegramMessageId: integer("telegram_message_id"),
-	sentAt: integer("sent_at", { mode: "timestamp" })
-		.notNull()
-		.default(sql`(unixepoch())`),
+	sentAt: timestamptz("sent_at").notNull().defaultNow(),
 });
 
-export const scrapeErrors = sqliteTable("scrape_errors", {
-	id: integer().primaryKey({ autoIncrement: true }),
+export const scrapeErrors = pgTable("scrape_errors", {
+	id: integer().primaryKey().generatedAlwaysAsIdentity(),
 	productId: integer("product_id")
 		.notNull()
 		.references(() => products.id, { onDelete: "cascade" }),
 	message: text().notNull(),
-	occurredAt: integer("occurred_at", { mode: "timestamp" })
-		.notNull()
-		.default(sql`(unixepoch())`),
+	occurredAt: timestamptz("occurred_at").notNull().defaultNow(),
 });
 
 /** Clave/valor para configuración (ej. el chat_id autorizado de Telegram) */
-export const appSettings = sqliteTable("app_settings", {
+export const appSettings = pgTable("app_settings", {
 	key: text().primaryKey(),
 	value: text().notNull(),
 	...timestamps,

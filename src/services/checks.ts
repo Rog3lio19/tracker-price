@@ -33,11 +33,10 @@ export type CheckOutcome =
 	| { kind: "error"; message: string };
 
 export async function checkProduct(productId: number): Promise<CheckOutcome> {
-	const product = db
+	const [product] = await db
 		.select()
 		.from(products)
-		.where(eq(products.id, productId))
-		.get();
+		.where(eq(products.id, productId));
 	if (!product) return { kind: "error", message: "El producto no existe" };
 
 	let result: ProductScrape;
@@ -45,7 +44,7 @@ export async function checkProduct(productId: number): Promise<CheckOutcome> {
 		result = await scrapeProduct(product);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		recordFailure(product, message);
+		await recordFailure(product, message);
 		return error instanceof BlockedError
 			? { kind: "blocked", store: error.store, message }
 			: { kind: "error", message };
@@ -61,10 +60,10 @@ export async function checkProduct(productId: number): Promise<CheckOutcome> {
 		result.sellerId &&
 		result.sellerId !== product.sellerId
 	) {
-		db.update(products)
+		await db
+			.update(products)
 			.set({ status: "seller_changed", lastCheckedAt: new Date() })
-			.where(eq(products.id, product.id))
-			.run();
+			.where(eq(products.id, product.id));
 		return {
 			kind: "seller_changed",
 			expected: product.sellerName ?? product.sellerId,
@@ -73,7 +72,7 @@ export async function checkProduct(productId: number): Promise<CheckOutcome> {
 	}
 
 	// ¿Cambio brusco? Se confirma si la revisión anterior vio casi el mismo precio
-	const lastSnapshot = db
+	const [lastSnapshot] = await db
 		.select({
 			price: priceSnapshots.price,
 			isSuspicious: priceSnapshots.isSuspicious,
@@ -81,29 +80,27 @@ export async function checkProduct(productId: number): Promise<CheckOutcome> {
 		.from(priceSnapshots)
 		.where(eq(priceSnapshots.productId, product.id))
 		.orderBy(desc(priceSnapshots.id))
-		.limit(1)
-		.get();
+		.limit(1);
 	const suspicious = isSuspiciousChange(
 		result.price,
 		product.lastPrice,
 		lastSnapshot?.isSuspicious ? lastSnapshot.price : null,
 	);
 
-	db.transaction((tx) => {
-		tx.insert(priceSnapshots)
-			.values({
-				productId: product.id,
-				price: result.price,
-				listPrice: result.listPrice,
-				inStock: result.inStock,
-				sellerId: result.sellerId,
-				source: result.source,
-				isSuspicious: suspicious,
-			})
-			.run();
+	await db.transaction(async (tx) => {
+		await tx.insert(priceSnapshots).values({
+			productId: product.id,
+			price: result.price,
+			listPrice: result.listPrice,
+			inStock: result.inStock,
+			sellerId: result.sellerId,
+			source: result.source,
+			isSuspicious: suspicious,
+		});
 
 		const countsForLowest = result.price != null && !suspicious;
-		tx.update(products)
+		await tx
+			.update(products)
 			.set({
 				// Completamos datos que no teníamos al agregar el producto
 				title: result.title ?? product.title,
@@ -119,13 +116,12 @@ export async function checkProduct(productId: number): Promise<CheckOutcome> {
 					? product.lastPrice
 					: (result.price ?? product.lastPrice),
 				lowestPrice: countsForLowest
-					? sql`min(coalesce(${products.lowestPrice}, ${result.price}), ${result.price})`
+					? sql`least(coalesce(${products.lowestPrice}, ${result.price}::integer), ${result.price}::integer)`
 					: product.lowestPrice,
 				lastCheckedAt: new Date(),
 				consecutiveFailures: 0,
 			})
-			.where(eq(products.id, product.id))
-			.run();
+			.where(eq(products.id, product.id));
 	});
 
 	return {
@@ -150,11 +146,12 @@ function nextStatus(product: Product, inStock: boolean): Product["status"] {
 /** Tras varios fallos seguidos el producto pasa a "error" para que lo revises */
 const FAILURES_BEFORE_ERROR = 3;
 
-function recordFailure(product: Product, message: string) {
+async function recordFailure(product: Product, message: string) {
 	const failures = product.consecutiveFailures + 1;
-	db.transaction((tx) => {
-		tx.insert(scrapeErrors).values({ productId: product.id, message }).run();
-		tx.update(products)
+	await db.transaction(async (tx) => {
+		await tx.insert(scrapeErrors).values({ productId: product.id, message });
+		await tx
+			.update(products)
 			.set({
 				consecutiveFailures: failures,
 				lastCheckedAt: new Date(),
@@ -163,7 +160,6 @@ function recordFailure(product: Product, message: string) {
 						? "error"
 						: product.status,
 			})
-			.where(eq(products.id, product.id))
-			.run();
+			.where(eq(products.id, product.id));
 	});
 }

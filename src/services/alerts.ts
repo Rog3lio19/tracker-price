@@ -25,15 +25,15 @@ const DEFAULT_RULES = [
 	{ type: "back_in_stock", threshold: null },
 ] as const;
 
-export function createDefaultRules(productId: number) {
-	db.insert(alertRules)
-		.values(DEFAULT_RULES.map((rule) => ({ ...rule, productId })))
-		.run();
+export async function createDefaultRules(productId: number) {
+	await db
+		.insert(alertRules)
+		.values(DEFAULT_RULES.map((rule) => ({ ...rule, productId })));
 }
 
 /** Productos que ya existían antes de las alertas y no tienen ninguna regla */
-export function ensureDefaultRules() {
-	const orphans = db
+export async function ensureDefaultRules() {
+	const orphans = await db
 		.select({ id: products.id })
 		.from(products)
 		.where(
@@ -43,9 +43,8 @@ export function ensureDefaultRules() {
 					.from(alertRules)
 					.where(eq(alertRules.productId, products.id)),
 			),
-		)
-		.all();
-	for (const { id } of orphans) createDefaultRules(id);
+		);
+	for (const { id } of orphans) await createDefaultRules(id);
 }
 
 type OkOutcome = Extract<CheckOutcome, { kind: "ok" }>;
@@ -146,11 +145,10 @@ export async function checkAndNotify(productId: number) {
 }
 
 async function notifyAfterCheck(productId: number, outcome: CheckOutcome) {
-	const product = db
+	const [product] = await db
 		.select()
 		.from(products)
-		.where(eq(products.id, productId))
-		.get();
+		.where(eq(products.id, productId));
 	if (!product) return;
 
 	if (outcome.kind === "seller_changed") {
@@ -166,11 +164,10 @@ async function notifyAfterCheck(productId: number, outcome: CheckOutcome) {
 
 	if (outcome.kind !== "ok") return;
 
-	const rules = db
+	const rules = await db
 		.select()
 		.from(alertRules)
-		.where(eq(alertRules.productId, productId))
-		.all();
+		.where(eq(alertRules.productId, productId));
 	const triggered = evaluateRules(rules, outcome);
 	if (triggered.length === 0) return;
 
@@ -179,20 +176,18 @@ async function notifyAfterCheck(productId: number, outcome: CheckOutcome) {
 	// Si no hay chat vinculado todavía, no marcamos nada: la alerta sigue pendiente
 	if (messageId === null) return;
 
-	db.transaction((tx) => {
+	await db.transaction(async (tx) => {
 		for (const rule of triggered) {
-			tx.update(alertRules)
+			await tx
+				.update(alertRules)
 				.set({ lastTriggeredAt: new Date() })
-				.where(eq(alertRules.id, rule.id))
-				.run();
+				.where(eq(alertRules.id, rule.id));
 		}
-		tx.insert(notifications)
-			.values({
-				productId,
-				alertRuleId: triggered[0]?.id,
-				message: text,
-				telegramMessageId: messageId,
-			})
-			.run();
+		await tx.insert(notifications).values({
+			productId,
+			alertRuleId: triggered[0]?.id,
+			message: text,
+			telegramMessageId: messageId,
+		});
 	});
 }

@@ -2,34 +2,27 @@
 
 Rastreador de precios para Amazon MX y Mercado Libre con alertas por Telegram.
 
-**Stack:** TanStack Start · Drizzle ORM · SQLite (better-sqlite3) · shadcn/ui · Tailwind v4 · paleta Tokyo Night
+**Stack:** TanStack Start · Drizzle ORM · PostgreSQL (node-postgres) · shadcn/ui · Tailwind v4 · paleta Tokyo Night
 
 ## Desarrollo
 
 ```bash
 pnpm install
 cp .env.example .env.local
-pnpm db:migrate      # crea data/tracker.db y aplica migraciones
+pnpm db:migrate      # aplica las migraciones a la base de DATABASE_URL
 pnpm dev             # http://localhost:3000
 ```
 
-## Docker
+## Despliegue
 
-```bash
-cp .env.example .env         # llena las variables que necesites
-docker compose up -d --build # http://localhost:3000
-docker compose logs -f worker
-```
+Necesitas un PostgreSQL y la variable `DATABASE_URL`. El `Dockerfile` construye una sola imagen que sirve para dos procesos:
 
-`docker-compose.yml` levanta tres servicios con la misma imagen:
-
-| Servicio | Qué hace |
+| Proceso | Comando |
 |---|---|
-| `migrate` | Aplica las migraciones pendientes y termina |
-| `web` | Dashboard (build de Nitro) en el puerto `3000` (o `PORT`) |
-| `worker` | Revisa los precios y atiende el bot de Telegram |
+| Web (dashboard en el puerto `3000`) | el de la imagen: aplica migraciones y arranca Nitro |
+| Worker (revisa precios y atiende el bot de Telegram) | `node --import tsx scripts/worker.ts` |
 
-La base SQLite vive en el volumen `tracker-data` (`/data/tracker.db`), compartido entre `web` y `worker`.
+Ambos usan el mismo `DATABASE_URL` y el resto de variables de `.env.example`.
 
 ## Scripts
 
@@ -59,7 +52,7 @@ src/
   components/      # UI (components/ui = shadcn)
   lib/             # Utilidades (tema, formato de precios)
 drizzle/           # Migraciones SQL generadas
-data/              # SQLite y capturas (ignorado por git)
+data/              # Capturas (ignorado por git)
 ```
 
 ## Notas

@@ -38,14 +38,13 @@ export async function addProductFromUrl(
 		};
 	}
 
-	const existing = db
+	const [existing] = await db
 		.select({ id: products.id })
 		.from(products)
-		.where(eq(products.canonicalUrl, parsed.canonicalUrl))
-		.get();
+		.where(eq(products.canonicalUrl, parsed.canonicalUrl));
 	if (existing) return { status: "exists", id: existing.id };
 
-	const created = db
+	const [created] = await db
 		.insert(products)
 		.values({
 			...parsed,
@@ -54,39 +53,32 @@ export async function addProductFromUrl(
 			// En Amazon el vendedor de la caja de compra cambia seguido y es normal.
 			sellerLock: parsed.marketplace === "mercadolibre",
 		})
-		.returning({ id: products.id })
-		.get();
-	createDefaultRules(created.id);
+		.returning({ id: products.id });
+	if (!created) throw new Error("No se pudo guardar el producto");
+	await createDefaultRules(created.id);
 	return { status: "created", id: created.id };
 }
 
 /** Productos + el precio tachado de su revisión más reciente (para las tarjetas) */
-export function listProducts() {
-	const all = db
+export async function listProducts() {
+	const all = await db
 		.select()
 		.from(products)
-		.orderBy(desc(products.createdAt))
-		.all();
+		.orderBy(desc(products.createdAt));
 
 	const latestIds = db
 		.select({ id: max(priceSnapshots.id) })
 		.from(priceSnapshots)
 		.groupBy(priceSnapshots.productId);
+	const latest = await db
+		.select({
+			productId: priceSnapshots.productId,
+			listPrice: priceSnapshots.listPrice,
+		})
+		.from(priceSnapshots)
+		.where(inArray(priceSnapshots.id, latestIds));
 	const listPrices = new Map(
-		db
-			.select({
-				productId: priceSnapshots.productId,
-				listPrice: priceSnapshots.listPrice,
-			})
-			.from(priceSnapshots)
-			.where(
-				inArray(
-					priceSnapshots.id,
-					latestIds.all().flatMap((row) => (row.id == null ? [] : [row.id])),
-				),
-			)
-			.all()
-			.map((row) => [row.productId, row.listPrice]),
+		latest.map((row) => [row.productId, row.listPrice]),
 	);
 
 	return all.map((product) => ({
@@ -96,32 +88,30 @@ export function listProducts() {
 }
 
 export function getProductWithHistory(id: number) {
-	return db.query.products
-		.findFirst({
-			where: eq(products.id, id),
-			with: {
-				snapshots: {
-					orderBy: desc(priceSnapshots.checkedAt),
-					limit: 300,
-				},
-				alertRules: true,
-				errors: {
-					orderBy: desc(scrapeErrors.occurredAt),
-					limit: 5,
-				},
+	return db.query.products.findFirst({
+		where: eq(products.id, id),
+		with: {
+			snapshots: {
+				orderBy: desc(priceSnapshots.checkedAt),
+				limit: 300,
 			},
-		})
-		.sync();
+			alertRules: true,
+			errors: {
+				orderBy: desc(scrapeErrors.occurredAt),
+				limit: 5,
+			},
+		},
+	});
 }
 
-export function setProductPaused(id: number, paused: boolean) {
-	db.update(products)
+export async function setProductPaused(id: number, paused: boolean) {
+	await db
+		.update(products)
 		.set({ status: paused ? "paused" : "active" })
-		.where(eq(products.id, id))
-		.run();
+		.where(eq(products.id, id));
 }
 
-export function deleteProduct(id: number) {
+export async function deleteProduct(id: number) {
 	// Las tablas hijas (snapshots, alertas...) se borran solas por ON DELETE CASCADE
-	db.delete(products).where(eq(products.id, id)).run();
+	await db.delete(products).where(eq(products.id, id));
 }
