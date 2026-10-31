@@ -6,8 +6,9 @@
 # "tracker-data", compartido entre la web y el worker.
 
 x-app: &app
-  build: .
   image: tracker-price
+  # La imagen se construye una sola vez (en "migrate") y la reusan web y worker
+  pull_policy: never
   env_file:
     - path: .env
       required: false
@@ -23,6 +24,7 @@ services:
   # Aplica las migraciones pendientes y termina
   migrate:
     <<: *app
+    build: .
     command: ["node", "--import", "tsx", "src/db/migrate.ts"]
     restart: "no"
 
