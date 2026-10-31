@@ -5,6 +5,7 @@
   "imports": {
     "#/*": "./src/*"
   },
+  "packageManager": "pnpm@10.27.0",
   "scripts": {
     "dev": "vite dev --port 3000",
     "generate-routes": "tsr generate",
