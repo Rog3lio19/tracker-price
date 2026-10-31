@@ -13,6 +13,24 @@ pnpm db:migrate      # crea data/tracker.db y aplica migraciones
 pnpm dev             # http://localhost:3000
 ```
 
+## Docker
+
+```bash
+cp .env.example .env         # llena las variables que necesites
+docker compose up -d --build # http://localhost:3000
+docker compose logs -f worker
+```
+
+`docker-compose.yml` levanta tres servicios con la misma imagen:
+
+| Servicio | Qué hace |
+|---|---|
+| `migrate` | Aplica las migraciones pendientes y termina |
+| `web` | Dashboard (build de Nitro) en el puerto `3000` (o `PORT`) |
+| `worker` | Revisa los precios y atiende el bot de Telegram |
+
+La base SQLite vive en el volumen `tracker-data` (`/data/tracker.db`), compartido entre `web` y `worker`.
+
 ## Scripts
 
 | Script | Qué hace |

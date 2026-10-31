@@ -1,0 +1,53 @@
+# Uso:
+#   cp .env.example .env   # y llena las variables que necesites
+#   docker compose up -d --build
+#
+# La web queda en http://localhost:3000 y la base SQLite vive en el volumen
+# "tracker-data", compartido entre la web y el worker.
+
+x-app: &app
+  build: .
+  image: tracker-price
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    DATABASE_URL: /data/tracker.db
+    # Dentro del contenedor siempre es 3000; PORT en .env solo cambia el puerto del host
+    PORT: "3000"
+  volumes:
+    - tracker-data:/data
+  restart: unless-stopped
+
+services:
+  # Aplica las migraciones pendientes y termina
+  migrate:
+    <<: *app
+    command: ["node", "--import", "tsx", "src/db/migrate.ts"]
+    restart: "no"
+
+  web:
+    <<: *app
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+
+  # Revisa precios en segundo plano y atiende el bot de Telegram
+  worker:
+    <<: *app
+    command: ["node", "--import", "tsx", "scripts/worker.ts"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    # Le da tiempo de terminar la revisión en curso al recibir SIGTERM
+    stop_grace_period: 60s
+
+volumes:
+  tracker-data:
