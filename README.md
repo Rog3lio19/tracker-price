@@ -13,16 +13,18 @@ pnpm db:migrate      # aplica las migraciones a la base de DATABASE_URL
 pnpm dev             # http://localhost:3000
 ```
 
-## Despliegue
+## Producción
 
-Necesitas un PostgreSQL y la variable `DATABASE_URL`. El `Dockerfile` construye una sola imagen que sirve para dos procesos:
+Necesitas un PostgreSQL y la variable `DATABASE_URL`. Son dos procesos que comparten esa base:
 
-| Proceso | Comando |
-|---|---|
-| Web (dashboard en el puerto `3000`) | el de la imagen: aplica migraciones y arranca Nitro |
-| Worker (revisa precios y atiende el bot de Telegram) | `node --import tsx scripts/worker.ts` |
+```bash
+pnpm build
+pnpm db:migrate                       # aplica migraciones
+node .output/server/index.mjs         # web en el puerto 3000
+pnpm worker                           # revisa precios y atiende el bot de Telegram
+```
 
-Ambos usan el mismo `DATABASE_URL` y el resto de variables de `.env.example`.
+Ambos leen las variables de `.env.example`.
 
 ## Scripts
 
