@@ -21,8 +21,8 @@ export const listProducts = createServerFn({ method: "GET" }).handler(() =>
 
 export const getProduct = createServerFn({ method: "GET" })
 	.validator(productIdInput)
-	.handler(async ({ data }) => {
-		const product = await productService.getProductWithHistory(data.id);
+	.handler(({ data }) => {
+		const product = productService.getProductWithHistory(data.id);
 		// notFound() hace que el router muestre el notFoundComponent de la ruta
 		if (!product) throw notFound();
 		return product;

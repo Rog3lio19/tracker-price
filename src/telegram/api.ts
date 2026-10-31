@@ -53,7 +53,7 @@ export function getOwnerChatId() {
 }
 
 export function setOwnerChatId(chatId: number) {
-	return setSetting(OWNER_KEY, chatId);
+	setSetting(OWNER_KEY, chatId);
 }
 
 export function sendMessage(chatId: number, text: string) {
@@ -71,7 +71,7 @@ export function sendMessage(chatId: number, text: string) {
  */
 export async function sendToOwner(text: string) {
 	if (!isTelegramConfigured()) return null;
-	const chatId = await getOwnerChatId();
+	const chatId = getOwnerChatId();
 	if (chatId == null) return null;
 	return (await sendMessage(chatId, text)).message_id;
 }

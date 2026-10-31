@@ -1,6 +1,7 @@
 /**
  * Worker: revisa los precios y atiende el bot de Telegram en segundo plano.
- * Es un proceso aparte de la web (comparte la base de datos con ella).
+ * Es un proceso aparte de la web (en Docker será un segundo servicio que
+ * comparte el volumen de la base de datos).
  *
  *   pnpm worker
  */
@@ -31,7 +32,7 @@ async function tick() {
 	}
 }
 
-await ensureDefaultRules();
+ensureDefaultRules();
 
 const bot = isTelegramConfigured()
 	? await startBot(log).catch((error) => {
@@ -44,7 +45,7 @@ log(`Worker iniciado (revisa pendientes cada ${TICK_MS / 1000} s)`);
 await tick();
 const timer = setInterval(tick, TICK_MS);
 
-// Al detenerlo (SIGTERM) terminamos la revisión en curso
+// Docker manda SIGTERM al detener el contenedor: terminamos la revisión en curso
 function shutdown() {
 	stopping = true;
 	clearInterval(timer);

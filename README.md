@@ -2,29 +2,27 @@
 
 Rastreador de precios para Amazon MX y Mercado Libre con alertas por Telegram.
 
-**Stack:** TanStack Start · Drizzle ORM · PostgreSQL (node-postgres) · shadcn/ui · Tailwind v4 · paleta Tokyo Night
+**Stack:** TanStack Start · Drizzle ORM · SQLite (better-sqlite3) · shadcn/ui · Tailwind v4 · paleta Tokyo Night
 
 ## Desarrollo
 
 ```bash
 pnpm install
 cp .env.example .env.local
-pnpm db:migrate      # aplica las migraciones a la base de DATABASE_URL
+pnpm db:migrate      # crea data/tracker.db y aplica migraciones
 pnpm dev             # http://localhost:3000
 ```
 
-## Producción
+## Docker
 
-Necesitas un PostgreSQL y la variable `DATABASE_URL`. Son dos procesos que comparten esa base:
+`Dockerfile` construye una sola imagen que, en un solo contenedor, aplica las migraciones y corre la web (puerto `3000`) y el worker (revisa precios y atiende el bot de Telegram).
 
 ```bash
-pnpm build
-pnpm db:migrate                       # aplica migraciones
-node .output/server/index.mjs         # web en el puerto 3000
-pnpm worker                           # revisa precios y atiende el bot de Telegram
+docker build -t tracker-price .
+docker run -d -p 3000:3000 -v tracker-data:/data --env-file .env tracker-price
 ```
 
-Ambos leen las variables de `.env.example`.
+La base SQLite vive en `/data/tracker.db` (`DATABASE_URL`): monta ahí un **volumen persistente**, o perderás los datos al recrear el contenedor. Si la web o el worker se caen, el contenedor termina para que la plataforma lo reinicie.
 
 ## Scripts
 
@@ -54,7 +52,7 @@ src/
   components/      # UI (components/ui = shadcn)
   lib/             # Utilidades (tema, formato de precios)
 drizzle/           # Migraciones SQL generadas
-data/              # Capturas (ignorado por git)
+data/              # SQLite y capturas (ignorado por git)
 ```
 
 ## Notas

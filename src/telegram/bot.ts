@@ -47,7 +47,7 @@ export async function startBot(log: (message: string) => void = console.log) {
 	// Si hubiera un webhook activo, Telegram rechaza getUpdates
 	await telegramCall("deleteWebhook");
 
-	if ((await getOwnerChatId()) == null) {
+	if (getOwnerChatId() == null) {
 		pairingCode = String(randomInt(100_000, 1_000_000));
 		log(
 			`Bot @${me.username} sin vincular. Mándale /start ${pairingCode} desde tu Telegram.`,
@@ -96,11 +96,11 @@ async function handleUpdate(update: Update) {
 	const text = message.text.trim();
 
 	// --- Vinculación -----------------------------------------------------------
-	const owner = await getOwnerChatId();
+	const owner = getOwnerChatId();
 	if (owner == null) {
 		const [command, code] = text.split(/\s+/);
 		if (command === "/start" && pairingCode && code === pairingCode) {
-			await setOwnerChatId(chatId);
+			setOwnerChatId(chatId);
 			pairingCode = null;
 			await sendMessage(
 				chatId,
@@ -125,9 +125,9 @@ async function handleUpdate(update: Update) {
 		case "/help":
 			return void (await sendMessage(chatId, HELP));
 		case "/lista":
-			return void (await sendMessage(chatId, await buildList()));
+			return void (await sendMessage(chatId, buildList()));
 		case "/objetivo":
-			return void (await sendMessage(chatId, await setTarget(args)));
+			return void (await sendMessage(chatId, setTarget(args)));
 	}
 
 	// --- Un link = alta de producto -------------------------------------------
@@ -144,10 +144,11 @@ async function addFromLink(url: string) {
 	if (result.status === "created") {
 		await checkAndNotify(result.id);
 	}
-	const [product] = await db
+	const product = db
 		.select()
 		.from(products)
-		.where(eq(products.id, result.id));
+		.where(eq(products.id, result.id))
+		.get();
 	if (!product) return "No pude guardar el producto.";
 
 	const head =
@@ -169,11 +170,12 @@ async function addFromLink(url: string) {
 		.join("\n");
 }
 
-async function buildList() {
-	const all = await db
+function buildList() {
+	const all = db
 		.select()
 		.from(products)
-		.orderBy(desc(products.createdAt));
+		.orderBy(desc(products.createdAt))
+		.all();
 	if (all.length === 0)
 		return "Todavía no sigues ningún producto. Mándame un link.";
 	return all
@@ -187,39 +189,40 @@ async function buildList() {
 		.join("\n\n");
 }
 
-async function setTarget(args: string[]) {
+function setTarget(args: string[]) {
 	const [idText, priceText] = args;
 	const id = Number(idText);
 	const pesos = Number((priceText ?? "").replace(/[$,]/g, ""));
 	if (!Number.isInteger(id) || !Number.isFinite(pesos) || pesos <= 0) {
 		return "Uso: <code>/objetivo id precio</code>, por ejemplo <code>/objetivo 8 600</code>. Los ids salen en /lista.";
 	}
-	const [product] = await db.select().from(products).where(eq(products.id, id));
+	const product = db.select().from(products).where(eq(products.id, id)).get();
 	if (!product) return `No existe el producto ${id}.`;
 
 	return setTargetRule(id, Math.round(pesos * 100), product.title);
 }
 
 /** Una sola regla de precio objetivo por producto: si ya hay, se actualiza */
-async function setTargetRule(
+function setTargetRule(
 	productId: number,
 	threshold: number,
 	title: string | null,
 ) {
-	const rules = await db
+	const existing = db
 		.select()
 		.from(alertRules)
-		.where(eq(alertRules.productId, productId));
-	const existing = rules.find((rule) => rule.type === "target_price");
+		.where(eq(alertRules.productId, productId))
+		.all()
+		.find((rule) => rule.type === "target_price");
 	if (existing) {
-		await db
-			.update(alertRules)
+		db.update(alertRules)
 			.set({ threshold, lastTriggeredAt: null })
-			.where(eq(alertRules.id, existing.id));
+			.where(eq(alertRules.id, existing.id))
+			.run();
 	} else {
-		await db
-			.insert(alertRules)
-			.values({ productId, type: "target_price", threshold });
+		db.insert(alertRules)
+			.values({ productId, type: "target_price", threshold })
+			.run();
 	}
 	return `🎯 Te aviso cuando <b>${escapeHtml(title ?? `#${productId}`)}</b> llegue a ${formatPrice(threshold)} o menos.`;
 }

@@ -12,7 +12,7 @@ dist-ssr
 __unconfig*
 todos.json
 
-# Capturas y bases locales
+# SQLite y capturas
 data/
 *.db
 *.db-shm

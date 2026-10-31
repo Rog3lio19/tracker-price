@@ -29,12 +29,12 @@ export function isDue(
 	return dueAt <= now.getTime();
 }
 
-export async function findDueProducts(now = new Date()) {
-	const checkable = await db
+export function findDueProducts(now = new Date()) {
+	return db
 		.select()
 		.from(products)
-		.where(inArray(products.status, [...CHECKABLE_STATUSES]));
-	return checkable
+		.where(inArray(products.status, [...CHECKABLE_STATUSES]))
+		.all()
 		.filter((product) => isDue(product, now))
 		.sort(
 			(a, b) =>
@@ -61,7 +61,7 @@ export async function runDueChecks(
 		new Promise((resolve) => setTimeout(resolve, ms)),
 ): Promise<RunSummary> {
 	const summary: RunSummary = { checked: 0, failed: 0, skippedBlocked: 0 };
-	const due = await findDueProducts();
+	const due = findDueProducts();
 	if (due.length === 0) return summary;
 	log(`${due.length} producto(s) por revisar`);
 

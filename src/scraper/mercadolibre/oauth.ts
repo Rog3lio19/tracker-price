@@ -44,9 +44,9 @@ function getAppCredentials() {
 	return { clientId, clientSecret, redirectUri };
 }
 
-export async function getMercadoLibreStatus() {
+export function getMercadoLibreStatus() {
 	const app = getAppCredentials();
-	const tokens = await getSetting<StoredTokens>(TOKENS_KEY);
+	const tokens = getSetting<StoredTokens>(TOKENS_KEY);
 	return {
 		appConfigured: app != null,
 		connected: tokens != null,
@@ -55,7 +55,7 @@ export async function getMercadoLibreStatus() {
 	};
 }
 
-export async function buildAuthorizeUrl() {
+export function buildAuthorizeUrl() {
 	const app = getAppCredentials();
 	if (!app)
 		throw new NotConfiguredError(
@@ -63,7 +63,7 @@ export async function buildAuthorizeUrl() {
 		);
 	// `state` evita que alguien te haga conectar una cuenta que no es tuya
 	const state = randomBytes(16).toString("hex");
-	await setSetting(STATE_KEY, state);
+	setSetting(STATE_KEY, state);
 	const params = new URLSearchParams({
 		response_type: "code",
 		client_id: app.clientId,
@@ -89,7 +89,7 @@ export async function connectWithCode(input: string) {
 		const url = new URL(code, "https://placeholder.local");
 		code = url.searchParams.get("code") ?? "";
 		const state = url.searchParams.get("state");
-		if (state && state !== (await getSetting<string>(STATE_KEY))) {
+		if (state && state !== getSetting<string>(STATE_KEY)) {
 			throw new Error(
 				"El parámetro state no coincide: vuelve a iniciar la conexión",
 			);
@@ -104,19 +104,19 @@ export async function connectWithCode(input: string) {
 		code,
 		redirect_uri: app.redirectUri,
 	});
-	await deleteSetting(STATE_KEY);
+	deleteSetting(STATE_KEY);
 	return tokens.userId;
 }
 
 export function disconnectMercadoLibre() {
-	return deleteSetting(TOKENS_KEY);
+	deleteSetting(TOKENS_KEY);
 }
 
 let refreshing: Promise<StoredTokens> | null = null;
 
 /** Access token válido, renovándolo si hace falta */
 export async function getAccessToken() {
-	const tokens = await getSetting<StoredTokens>(TOKENS_KEY);
+	const tokens = getSetting<StoredTokens>(TOKENS_KEY);
 	if (!tokens) {
 		throw new NotConfiguredError(
 			"Conecta tu cuenta de Mercado Libre en Configuración",
@@ -158,7 +158,7 @@ async function requestTokens(body: Record<string, string>) {
 		const detail = await response.text();
 		if (body.grant_type === "refresh_token" && response.status === 400) {
 			// El refresh_token venció (6 meses) o se revocó: hay que reconectar
-			await disconnectMercadoLibre();
+			disconnectMercadoLibre();
 			throw new NotConfiguredError(
 				"La conexión con Mercado Libre expiró, vuelve a conectarla en Configuración",
 			);
@@ -174,6 +174,6 @@ async function requestTokens(body: Record<string, string>) {
 		expiresAt: Date.now() + data.expires_in * 1000,
 		userId: data.user_id,
 	};
-	await setSetting(TOKENS_KEY, tokens);
+	setSetting(TOKENS_KEY, tokens);
 	return tokens;
 }

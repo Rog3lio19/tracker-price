@@ -1,13 +1,19 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 
 import * as schema from "./schema.ts";
 
-// La conexión es perezosa: no se abre hasta la primera consulta
-export const pool = new Pool({
-	connectionString:
-		process.env.DATABASE_URL ??
-		"postgres://postgres:postgres@localhost:5432/tracker_price",
-});
+const databaseUrl = process.env.DATABASE_URL ?? "data/tracker.db";
+mkdirSync(dirname(databaseUrl), { recursive: true });
 
-export const db = drizzle(pool, { schema });
+const sqlite = new Database(databaseUrl);
+// WAL permite que la app web y el worker lean/escriban la misma DB a la vez
+sqlite.pragma("journal_mode = WAL");
+sqlite.pragma("foreign_keys = ON");
+// Si el otro proceso tiene un lock, espera hasta 5s en vez de fallar
+sqlite.pragma("busy_timeout = 5000");
+
+export const db = drizzle(sqlite, { schema });

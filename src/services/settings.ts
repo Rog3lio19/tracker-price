@@ -4,25 +4,26 @@ import { db } from "#/db";
 import { appSettings } from "#/db/schema";
 
 /** Configuración clave/valor guardada como JSON en la tabla app_settings */
-export async function getSetting<T>(key: string): Promise<T | null> {
-	const [row] = await db
+export function getSetting<T>(key: string): T | null {
+	const row = db
 		.select({ value: appSettings.value })
 		.from(appSettings)
-		.where(eq(appSettings.key, key));
+		.where(eq(appSettings.key, key))
+		.get();
 	return row ? (JSON.parse(row.value) as T) : null;
 }
 
-export async function setSetting(key: string, value: unknown) {
+export function setSetting(key: string, value: unknown) {
 	const json = JSON.stringify(value);
-	await db
-		.insert(appSettings)
+	db.insert(appSettings)
 		.values({ key, value: json })
 		.onConflictDoUpdate({
 			target: appSettings.key,
 			set: { value: json, updatedAt: new Date() },
-		});
+		})
+		.run();
 }
 
-export async function deleteSetting(key: string) {
-	await db.delete(appSettings).where(eq(appSettings.key, key));
+export function deleteSetting(key: string) {
+	db.delete(appSettings).where(eq(appSettings.key, key)).run();
 }

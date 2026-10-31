@@ -6,10 +6,8 @@ config({ path: ['.env.local', '.env'] })
 export default defineConfig({
   out: './drizzle',
   schema: './src/db/schema.ts',
-  dialect: 'postgresql',
+  dialect: 'sqlite',
   dbCredentials: {
-    url:
-      process.env.DATABASE_URL ??
-      'postgres://postgres:postgres@localhost:5432/tracker_price',
+    url: process.env.DATABASE_URL ?? 'data/tracker.db',
   },
 })
